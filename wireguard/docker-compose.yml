@@ -1,0 +1,38 @@
+services:
+  wireguard:
+    image: linuxserver/wireguard
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN 
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Mexico_City  #Change to your timezone
+      - SERVERURL=${SERVERURL} #Use .env | Change to your domain name or public IP.
+      - SERVERPORT=51820
+      - PEERS=2 #optional. Number of peers to create config files for.
+      - PEERDNS=auto #optional (default: auto). Set to auto to use the DNS set in the container or set a custom DNS server like
+      - INTERNAL_SUBNET=10.13.13.0 #optional. Set to custom subnet for the VPN clients.
+    volumes:
+      - /root/wireguard:/config
+      - /lib/modules:/lib/modules
+      - /usr/src:/usr/src
+    ports:
+      - 51820:51820/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    dns:
+      - 172.23.0.7   # Pi-hole DNS server IP. Delete this line if you want to use the default DNS.
+    restart: unless-stopped
+    networks:
+      pihole_dns_net:  #Connect to the Pi-hole DNS network. Delete this line if you don't use Pi-hole.
+        ipv4_address: 172.23.0.6  #Assign a static IP address for the Wireguard container
+
+networks:
+  containers:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  pihole_dns_net:  # Make sure this exists and matches your Pi-hole network. If you don't use Pi-hole, you can remove this.
+    external: true
