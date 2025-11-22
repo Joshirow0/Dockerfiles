@@ -1,0 +1,86 @@
+services:
+  pihole:
+    container_name: pihole
+    domainname: joshiro.xyz # change to your domain
+    image: pihole/pihole:latest
+    ports:
+      - '53:53/tcp'
+      - '53:53/udp'
+    #  - '67:67/udp'
+      - '8053:80/tcp'
+    volumes:
+    # run `touch ./pihole.log` first
+    #  - ./pihole.log:/var/log/pihole.log
+      - ./etc-pihole/:/etc/pihole/
+      - ./etc-dnsmasqd/:/etc/dnsmasq.d/
+    networks:
+      dns_net:
+        ipv4_address: '172.23.0.7'
+      backend:
+        ipv4_address: '172.31.0.100'
+      proxy:
+    depends_on:
+      - dhcphelper      # optional, only if you want DHCP. Helps to avoid conflicts with ports and host network_mode
+    cap_add:
+      - NET_ADMIN
+    environment:
+      ServerIP: ${SERVERIP}    # change to your server IP
+      PROXY_LOCATION: pihole
+      VIRTUAL_HOST: ${VIRTUAL_HOST}  # change to your domain
+      VIRTUAL_PORT: 80
+      TZ: 'America/Mexico_City'  # change to your timezone
+      FTLCONF_webserver_api_password: ${PASSWD} # change to your password
+      FTLCONF_dns_listeningMode: 'all'
+      DNSMASQ_USER: 'root'   
+    restart: unless-stopped
+    labels:  #Traefik labels, change settings as needed
+      # required when using --docker.exposedbydefault=false
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.constraint-label=traefik-public"
+      - "traefik.http.routers.pihole-http.rule=Host(`pihole.local.joshiro.xyz`)" # change to your domain
+      - "traefik.http.routers.pihole-http.entrypoints=http"
+      - "traefik.http.middlewares.pihole-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.pihole-http.middlewares=pihole-https-redirect"
+      - "traefik.http.routers.pihole-https.rule=Host(`pihole.local.joshiro.xyz`)" # change to your domain
+      - "traefik.http.routers.pihole-https.entrypoints=https"
+      - "traefik.http.routers.pihole-https.tls=true"
+      - "traefik.http.routers.pihole-https.tls.certresolver=le"
+      - "traefik.http.routers.pihole-https.service=pihole"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+
+  dhcphelper: # optional, only if you want DHCP
+    build: ./dockerfiles/pihole
+    restart: unless-stopped
+    network_mode: "host"
+    command: -s 172.31.0.100
+    cap_add:
+      - NET_ADMIN
+
+  unbound: # optional, only if you want to use unbound as recursive DNS resolver
+    container_name: unbound
+    image: mvance/unbound-rpi:latest # remember to change this if you're using rpi
+    networks:
+      dns_net:
+        ipv4_address: 172.23.0.8
+    volumes:
+      - ./unbound:/opt/unbound/etc/unbound
+    ports:
+      - "5053:53/tcp"
+      - "5053:53/udp"
+    healthcheck:
+      test: ["NONE"]
+    restart: unless-stopped
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+  dns_net:
+    driver: bridge
+    ipam:
+        config:
+        - subnet: 172.23.0.0/16
+  proxy:
+    external: true
