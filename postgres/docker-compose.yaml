@@ -1,0 +1,50 @@
+#Made by: @Joshirow0
+#Date: 5th Nov 2025
+services:
+  db:
+    image: postgres:16  #Postgres Image, lts version
+    restart: always
+    networks:
+      db-network: #Internal network for db service
+    ports:
+      - 5432:5432             #Postgres default port
+    volumes: #To save data persistently
+      - ./postgres-data:/var/lib/postgresql/data #It creates a dir in the current directory. Mapped to postgres 17 and below. In 18 it change
+    environment:
+      - POSTGRES_USER=${USER}  #user in .env
+      - POSTGRES_PASSWORD=${PSSWRD}  #password in .env
+      #- POSTGRES_DB=           #If you want to name the db. By default it uses the same name of user
+
+  pgAdmin:
+    image: dpage/pgadmin4    #Official pgAdmin image, latest version at the time of writing this
+    restart: always
+    networks:
+      proxy:  #External network for Traefik. Make sure it exists or delete if not needed
+      db-network: #Internal network to connect with db service
+    ports:
+      - 8001:80              #Default port for pgAdmin, changed to 8001 to avoid conflicts with other services
+    depends_on:
+      - db
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PG_EMAIL} #email in .env
+      - PGADMIN_DEFAULT_PASSWORD=${PG_PSSWRD} #password in .env
+    labels: #Traefik settings. Delete all labels if not needed or change it to your needs
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.constraint-label=traefik-public"
+      - "traefik.http.routers.pgadmin-http.rule=Host(`pgadmin.local.joshiro.xyz`)"
+      - "traefik.http.routers.pgadmin-http.entrypoints=http"
+      - "traefik.http.middlewares.pgadmin-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.pgadmin-http.middlewares=pgadmin-https-redirect"
+      - "traefik.http.routers.pgadmin-https.rule=Host(`pgadmin.local.joshiro.xyz`)"
+      - "traefik.http.routers.pgadmin-https.entrypoints=https"
+      - "traefik.http.routers.pgadmin-https.tls=true"
+      - "traefik.http.routers.pgadmin-https.tls.certresolver=le"
+      - "traefik.http.routers.pgadmin-https.service=pgadmin"
+      - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
+
+networks: 
+  proxy: #Define the external network for Traefik. Make sure it exists or delete if not needed
+    external: true
+  db-network:
+    driver: bridge
