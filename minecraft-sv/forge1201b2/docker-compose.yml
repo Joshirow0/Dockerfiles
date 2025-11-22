@@ -1,0 +1,11 @@
+services:
+  svbeta2-forge1201:
+    stdin_open: true
+    tty: true
+    ports:
+      - 25565:25565
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./conf:/app
