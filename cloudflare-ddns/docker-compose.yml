@@ -1,0 +1,12 @@
+# Docker Compose configuration for Cloudflare DDNS
+# link: https://hub.docker.com/r/oznu/cloudflare-ddns/
+# Date: 22-Nov-2025
+services:
+  cloudflare-ddns:
+    image: oznu/cloudflare-ddns:latest
+    restart: always
+    environment:
+      - API_KEY=${CLOUDFLARE_API_KEY} # Your Cloudflare Global API Key in .env
+      - ZONE=${CLOUDFLARE_ZONE}   # Your Cloudflare Zone (domain) in .env
+      #- SUBDOMAIN=          # Optional: Subdomain to update (defaults to root domain)
+      - PROXIED=true        # Optional: Set to true to enable Cloudflare proxy (default: false)
